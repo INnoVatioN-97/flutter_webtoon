@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_webtoon/models/webtoon_detail_model.dart';
 import 'package:flutter_webtoon/models/webtoon_episode_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/webtoon_model.dart';
 import '../services/api_service.dart';
@@ -18,12 +19,45 @@ class DetailScreen extends StatefulWidget {
 class _DetailScreenState extends State<DetailScreen> {
   late Future<WebtoonDetailModel> webtoonDetail;
   late Future<List<WebtoonEpisodeModel>> episodes;
+  late SharedPreferences prefs;
+  bool isLiked = false;
+
+  Future initPrefs() async {
+    prefs = await SharedPreferences.getInstance();
+    final likedToons = prefs.getStringList("LIKED_TOONS");
+
+    if (likedToons != null) {
+      if (likedToons.contains(widget.webtoon.id) == true) {
+        setState(() {
+          isLiked = true;
+        });
+      }
+    } else {
+      await prefs.setStringList("LIKED_TOONS", []);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
     webtoonDetail = ApiService.getToonById(widget.webtoon.id);
     episodes = ApiService.getLatestEpisodesById(widget.webtoon.id);
+    initPrefs();
+  }
+
+  onHeartTap() async {
+    final likedToons = prefs.getStringList("LIKED_TOONS");
+    if (likedToons != null) {
+      if (isLiked) {
+        likedToons.remove(widget.webtoon.id);
+      } else {
+        likedToons.add(widget.webtoon.id);
+      }
+      await prefs.setStringList("LIKED_TOONS", likedToons);
+      setState(() {
+        isLiked = !isLiked;
+      });
+    }
   }
 
   @override
@@ -31,12 +65,18 @@ class _DetailScreenState extends State<DetailScreen> {
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.green,
+        actions: [
+          IconButton(
+              onPressed: onHeartTap,
+              icon: Icon(
+                  isLiked ? Icons.favorite : Icons.favorite_outline_outlined))
+        ],
         title: Text(
           widget.webtoon.title,
           style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
         ),
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.green,
       ),
       body: SingleChildScrollView(
         scrollDirection: Axis.vertical,
